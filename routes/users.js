@@ -31,7 +31,7 @@ router.post("/", (req, res) => {
       code: "400",
       status: "Bad Request",
       message:
-        "failed to enter data into the database, please enter the appropriate nama, alamat and nohp",
+        "failed to insert data into the database, please enter the appropriate nama, alamat and nohp",
     });
   }
 
@@ -50,4 +50,39 @@ router.post("/", (req, res) => {
     });
   });
 });
+
+// kueri untuk update data dari database
+router.put("/:id", (req, res) => {
+  const user_id = req.params.id;
+  const { nama, alamat, nohp } = req.body;
+
+  // Periksa apakah data yang diterima sesuai
+  if (!nama || !alamat || !nohp) {
+    return res.status(400).json({
+      code: "400",
+      status: "Bad Request",
+      message:
+        "failed to update data into the database, please enter the appropriate nama, alamat and nohp",
+    });
+  }
+
+  // kueri untuk memperbarui data dalam database
+  const query =
+    "UPDATE users SET nama = ?, alamat = ?, nohp = ? WHERE user_id = ?";
+  db.query(query, [nama, alamat, nohp, user_id], (error, results) => {
+    if (error) {
+      console.error("Failed to update data to database:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to update data to database:" });
+    }
+    res.status(200).json({
+      code: "200",
+      status: "OK",
+      message: "Data has been successfully update to the database",
+      id: user_id,
+    });
+  });
+});
+
 module.exports = router;
