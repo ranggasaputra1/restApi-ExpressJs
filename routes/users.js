@@ -3,7 +3,7 @@ var router = express.Router();
 var db = require("../config/database");
 var bodyParser = require("body-parser");
 
-// Menampilkan seluruh data dari database
+// Show all data from databasev
 router.get("/", (req, res) => {
   const query = "SELECT * FROM users";
   db.query(query, (error, results, fields) => {
@@ -21,7 +21,7 @@ router.get("/", (req, res) => {
   });
 });
 
-// Insert data ke database
+// Insert data to database
 router.post("/", (req, res) => {
   const { nama, alamat, nohp } = req.body;
 
