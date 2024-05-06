@@ -3,7 +3,7 @@ var router = express.Router();
 var db = require("../config/database");
 var bodyParser = require("body-parser");
 
-// Menampilkan data dari database
+// Menampilkan seluruh data dari database
 router.get("/", (req, res) => {
   const query = "SELECT * FROM users";
   db.query(query, (error, results, fields) => {
@@ -46,7 +46,7 @@ router.post("/", (req, res) => {
       code: "201",
       status: "OK",
       message: "Data has been successfully added to the database",
-      id: results.insertId,
+      user_id: results.insertId,
     });
   });
 });
@@ -80,7 +80,29 @@ router.put("/:id", (req, res) => {
       code: "200",
       status: "OK",
       message: "Data has been successfully update to the database",
-      id: user_id,
+      user_id: user_id,
+    });
+  });
+});
+
+// Rute untuk menghapus data dari database
+router.delete("/:id", (req, res) => {
+  const user_id = req.params.id;
+
+  // kueri untuk menghapus data dari database
+  const query = "DELETE FROM users WHERE user_id = ?";
+  db.query(query, [user_id], (error, results) => {
+    if (error) {
+      console.error("Failed to update data to database:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to update data to database:" });
+    }
+    res.status(200).json({
+      code: "200",
+      status: "OK",
+      message: "Data has been successfully deleted from database",
+      user_id: user_id,
     });
   });
 });
