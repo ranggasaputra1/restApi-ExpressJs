@@ -3,6 +3,79 @@ var router = express.Router();
 var db = require("../config/database");
 var bodyParser = require("body-parser");
 var bcrypt = require("bcrypt");
+var jwt = require("jsonwebtoken");
+
+const { generateToken } = require("../middleware/verify-token");
+const { authenticateToken } = require("../middleware/verify-token");
+
+// // Route Login User
+router.post("/login", (req, res) => {
+  const { email, password } = req.body;
+
+  // Memeriksa apakah email dan password diinputkan
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      code: 400,
+      status: "Bad Request",
+      message: "Please provide both email and password for login",
+    });
+  }
+
+  const sql = "SELECT * FROM users WHERE email = ?";
+  db.query(sql, [email], async (err, results) => {
+    if (err) {
+      console.error("Error during login:", err);
+      return res.status(500).json({
+        success: false,
+        code: 500,
+        status: "Server Error",
+        message: "Internal Server Error",
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(401).json({
+        success: false,
+        code: 401,
+        status: "Bad Request",
+        message:
+          "Account not Found. Make sure the email and password are correct",
+      });
+    }
+
+    const user = results[0];
+
+    // Memeriksa apakah password cocok
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+    console.log("Input Password:", password);
+    console.log("Stored Hashed Password:", user.password);
+    console.log("Password Match:", isPasswordMatch);
+
+    if (isPasswordMatch) {
+      // Jika otentikasi berhasil, generate token
+      const token = generateToken(user);
+
+      return res.status(200).json({
+        success: true,
+        code: 200,
+        status: "OK",
+        message: "Login Successful",
+        userId: user.user_id,
+        username: user.username,
+        token,
+      });
+    } else {
+      return res.status(401).json({
+        success: false,
+        code: 401,
+        status: "Bad Request",
+        message: "Incorrect Password",
+      });
+    }
+  });
+});
 
 // Route untuk signup user
 router.post("/signup", async (req, res) => {
@@ -12,6 +85,7 @@ router.post("/signup", async (req, res) => {
     // Periksa apakah email, username, dan password telah diinputkan
     if (!email || !username || !password) {
       return res.status(400).json({
+        success: false,
         code: 400,
         status: "Bad Request",
         message: "Please provide email, username, and password.",
@@ -21,6 +95,7 @@ router.post("/signup", async (req, res) => {
     // Periksa apakah email mengandung karakter '@'
     if (!email.includes("@")) {
       return res.status(400).json({
+        success: false,
         code: 400,
         status: "Bad Request",
         message: "Invalid email format. Please use a valid email address.",
@@ -36,6 +111,7 @@ router.post("/signup", async (req, res) => {
         if (checkEmailErr) {
           console.error("Error checking email:", checkEmailErr);
           return res.status(500).json({
+            success: false,
             code: 500,
             status: "Server Error",
             message: "Internal Server Error",
@@ -45,6 +121,7 @@ router.post("/signup", async (req, res) => {
         // Jika email sudah ada, beri respons
         if (checkEmailResult.length > 0) {
           return res.status(400).json({
+            success: false,
             code: 400,
             status: "Bad Request",
             message: "Email already exists. Please use a different email.",
@@ -54,6 +131,7 @@ router.post("/signup", async (req, res) => {
         // Periksa panjang password
         if (password.length < 8) {
           return res.status(400).json({
+            success: false,
             code: 400,
             status: "Bad Request",
             message: "Password should be at least 8 characters long.",
@@ -75,6 +153,7 @@ router.post("/signup", async (req, res) => {
             if (insertErr) {
               console.error("Error during user registration:", insertErr);
               return res.status(500).json({
+                success: false,
                 code: 500,
                 status: "Server Error",
                 message: "Internal Server Error",
@@ -83,12 +162,14 @@ router.post("/signup", async (req, res) => {
 
             if (result.affectedRows > 0) {
               return res.status(200).json({
+                success: true,
                 code: 200,
                 status: "OK",
                 message: "User Registered Successfully",
               });
             } else {
               return res.status(500).json({
+                success: false,
                 code: 500,
                 status: "Server Error",
                 message: "Failed to Register User",
@@ -101,6 +182,7 @@ router.post("/signup", async (req, res) => {
   } catch (error) {
     console.error("Error during user registration:", error);
     res.status(500).json({
+      success: false,
       code: 500,
       status: "Server Error",
       message: "Internal Server Error",
@@ -109,7 +191,7 @@ router.post("/signup", async (req, res) => {
 });
 
 // Show all data from database
-router.get("/", (req, res) => {
+router.get("/", authenticateToken, (req, res) => {
   const query = "SELECT * FROM users";
   db.query(query, (error, results, fields) => {
     if (error) {
@@ -118,6 +200,7 @@ router.get("/", (req, res) => {
       return;
     }
     res.json({
+      success: true,
       code: "200",
       status: "OK",
       message: "Success display data",
@@ -127,12 +210,13 @@ router.get("/", (req, res) => {
 });
 
 // Insert data to database
-router.post("/", (req, res) => {
+router.post("/", authenticateToken, (req, res) => {
   const { nama, alamat, nohp } = req.body;
 
   // periksa apakah yang diinputkan sesuai
   if (!nama || !alamat || !nohp) {
     return res.status(400).json({
+      success: false,
       code: "400",
       status: "Bad Request",
       message:
@@ -148,6 +232,7 @@ router.post("/", (req, res) => {
       return res.status(500).json({ error: "Failed to add data to database:" });
     }
     res.status(201).json({
+      success: true,
       code: "201",
       status: "OK",
       message: "Data has been successfully added to the database",
@@ -157,13 +242,14 @@ router.post("/", (req, res) => {
 });
 
 // kueri untuk update data dari database
-router.put("/:id", (req, res) => {
+router.put("/:id", authenticateToken, (req, res) => {
   const user_id = req.params.id;
   const { nama, alamat, nohp } = req.body;
 
   // Periksa apakah data yang diterima sesuai
   if (!nama || !alamat || !nohp) {
     return res.status(400).json({
+      success: false,
       code: "400",
       status: "Bad Request",
       message:
@@ -182,6 +268,7 @@ router.put("/:id", (req, res) => {
         .json({ error: "Failed to update data to database:" });
     }
     res.status(200).json({
+      success: true,
       code: "200",
       status: "OK",
       message: "Data has been successfully update to the database",
@@ -191,7 +278,7 @@ router.put("/:id", (req, res) => {
 });
 
 // Rute untuk menghapus data dari database
-router.delete("/:id", (req, res) => {
+router.delete("/:id", authenticateToken, (req, res) => {
   const user_id = req.params.id;
 
   // kueri untuk menghapus data dari database
@@ -204,6 +291,7 @@ router.delete("/:id", (req, res) => {
         .json({ error: "Failed to update data to database:" });
     }
     res.status(200).json({
+      success: true,
       code: "200",
       status: "OK",
       message: "Data has been successfully deleted from database",
