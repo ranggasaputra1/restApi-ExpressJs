@@ -2,9 +2,9 @@ const mysql = require("mysql");
 
 // Konfigurasi koneksi ke database
 const database = mysql.createConnection({
-  host: "34.174.147.197", // Host database
+  host: "127.0.0.1", // Host database
   user: "root", // Pengguna database
-  password: "express", // Kata sandi pengguna database
+  password: "", // Kata sandi pengguna database
   database: "express", // Nama database yang ingin digunakan
 });
 

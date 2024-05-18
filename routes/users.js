@@ -2,8 +2,113 @@ var express = require("express");
 var router = express.Router();
 var db = require("../config/database");
 var bodyParser = require("body-parser");
+var bcrypt = require("bcrypt");
 
-// Show all data from databasev
+// Route untuk signup user
+router.post("/signup", async (req, res) => {
+  try {
+    const { email, username, password } = req.body;
+
+    // Periksa apakah email, username, dan password telah diinputkan
+    if (!email || !username || !password) {
+      return res.status(400).json({
+        code: 400,
+        status: "Bad Request",
+        message: "Please provide email, username, and password.",
+      });
+    }
+
+    // Periksa apakah email mengandung karakter '@'
+    if (!email.includes("@")) {
+      return res.status(400).json({
+        code: 400,
+        status: "Bad Request",
+        message: "Invalid email format. Please use a valid email address.",
+      });
+    }
+
+    // Periksa apakah email sudah ada di database
+    const checkEmailQuery = "SELECT * FROM users WHERE email = ?";
+    db.query(
+      checkEmailQuery,
+      [email],
+      async (checkEmailErr, checkEmailResult) => {
+        if (checkEmailErr) {
+          console.error("Error checking email:", checkEmailErr);
+          return res.status(500).json({
+            code: 500,
+            status: "Server Error",
+            message: "Internal Server Error",
+          });
+        }
+
+        // Jika email sudah ada, beri respons
+        if (checkEmailResult.length > 0) {
+          return res.status(400).json({
+            code: 400,
+            status: "Bad Request",
+            message: "Email already exists. Please use a different email.",
+          });
+        }
+
+        // Periksa panjang password
+        if (password.length < 8) {
+          return res.status(400).json({
+            code: 400,
+            status: "Bad Request",
+            message: "Password should be at least 8 characters long.",
+          });
+        }
+
+        // Hash password sebelum menyimpan ke database
+        const hashedPassword = bcrypt.hashSync(password, 10);
+
+        const createdat = new Date();
+
+        // Query untuk insert user baru ke database dengan createdat
+        const insertUserQuery =
+          "INSERT INTO users (email, username, password, createdat) VALUES (?, ?, ?, ?)";
+        db.query(
+          insertUserQuery,
+          [email, username, hashedPassword, createdat],
+          (insertErr, result) => {
+            if (insertErr) {
+              console.error("Error during user registration:", insertErr);
+              return res.status(500).json({
+                code: 500,
+                status: "Server Error",
+                message: "Internal Server Error",
+              });
+            }
+
+            if (result.affectedRows > 0) {
+              return res.status(200).json({
+                code: 200,
+                status: "OK",
+                message: "User Registered Successfully",
+              });
+            } else {
+              return res.status(500).json({
+                code: 500,
+                status: "Server Error",
+                message: "Failed to Register User",
+              });
+            }
+          }
+        );
+      }
+    );
+  } catch (error) {
+    console.error("Error during user registration:", error);
+    res.status(500).json({
+      code: 500,
+      status: "Server Error",
+      message: "Internal Server Error",
+    });
+  }
+});
+
+// Show all data from database
 router.get("/", (req, res) => {
   const query = "SELECT * FROM users";
   db.query(query, (error, results, fields) => {
